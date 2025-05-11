@@ -52,6 +52,12 @@ public class Server extends JFrame implements ActionListener {
   static final int PLAY = 4;
   static final int PAUSE = 5;
   static final int TEARDOWN = 6;
+  static final int FORWARD = 7; // New command for forwarding
+  static final int BACKWARD = 8; // New command for going backward
+
+  // Constants for seeking
+  static final int SEEK_FRAMES = 25; // Number of frames to skip when seeking forward/backward
+  // This is roughly 5 seconds since FRAME_PERIOD is 100ms (10fps)
 
   static int state; // RTSP Server state == INIT or READY or PLAY
   Socket RTSPsocket; // socket used to send/receive RTSP messages
@@ -148,9 +154,7 @@ public class Server extends JFrame implements ActionListener {
         // init RTP socket
         theServer.RTPsocket = new DatagramSocket();
       }
-    }
-
-    // loop to handle RTSP requests
+    } // loop to handle RTSP requests
     while (true) {
       // parse the request
       request_type = theServer.parse_RTSP_request(); // blocking
@@ -171,6 +175,44 @@ public class Server extends JFrame implements ActionListener {
         // update state
         state = READY;
         System.out.println("New RTSP state: READY");
+      } else if ((request_type == FORWARD) && (state == PLAYING)) {
+        // Send response first
+        theServer.send_RTSP_response();
+
+        // Temporarily stop the timer
+        theServer.timer.stop();
+
+        try {
+          // Forward 5 seconds (50 frames at 10fps)
+          theServer.video.seekForward(SEEK_FRAMES);
+          // Update frame counter
+          theServer.imagenb += SEEK_FRAMES;
+          System.out.println("Forwarded " + SEEK_FRAMES + " frames to frame #" + theServer.imagenb);
+        } catch (Exception ex) {
+          System.out.println("Exception on forwarding: " + ex);
+        }
+
+        // Restart timer
+        theServer.timer.start();
+      } else if ((request_type == BACKWARD) && (state == PLAYING)) {
+        // Send response first
+        theServer.send_RTSP_response();
+
+        // Temporarily stop the timer
+        theServer.timer.stop();
+
+        try {
+          // Backward 5 seconds (50 frames at 10fps)
+          theServer.video.seekBackward(SEEK_FRAMES);
+          // Update frame counter
+          theServer.imagenb = Math.max(0, theServer.imagenb - SEEK_FRAMES);
+          System.out.println("Rewound " + SEEK_FRAMES + " frames to frame #" + theServer.imagenb);
+        } catch (Exception ex) {
+          System.out.println("Exception on rewinding: " + ex);
+        }
+
+        // Restart timer
+        theServer.timer.start();
       } else if (request_type == TEARDOWN) {
         // send back response
         theServer.send_RTSP_response();
@@ -256,6 +298,10 @@ public class Server extends JFrame implements ActionListener {
         request_type = PAUSE;
       else if ((request_type_string).compareTo("TEARDOWN") == 0)
         request_type = TEARDOWN;
+      else if ((request_type_string).compareTo("FORWARD") == 0)
+        request_type = FORWARD;
+      else if ((request_type_string).compareTo("BACKWARD") == 0)
+        request_type = BACKWARD;
 
       if (request_type == SETUP) {
         // extract VideoFileName from RequestLine
