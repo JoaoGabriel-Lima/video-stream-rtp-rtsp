@@ -2,7 +2,7 @@
 
 This application demonstrates real-time video streaming using the Real-time Transport Protocol (RTP) over UDP, with control messages sent via the Real Time Streaming Protocol (RTSP) over TCP.
 
-https://youtu.be/rp3K_MUoZk8
+[![Demonstração do trabalho](https://img.youtube.com/vi/rp3K_MUoZk8/0.jpg)](https://youtu.be/rp3K_MUoZk8)
 
 ## Overview
 
